@@ -47,58 +47,59 @@ class BestValueFinder:
 
     REQUIRED_COUNTRIES = ['USA', 'Mexico', 'Canada']
 
-    def find_best_value(
-        self,
-        all_matches: list,
-        budget: float,
-        origin_city_id: str,
-        flight_prices: list
-    ) -> BestValueResult:
-        """
-        Find the best value combination of matches within budget.
+def find_best_value(self, all_matches, budget, origin_city_id, flight_prices):
+    matches_by_country = self.get_matches_by_country(all_matches)
 
-        Args:
-            all_matches: All available matches
-            budget: Maximum budget in USD
-            origin_city_id: Starting city for the trip
-            flight_prices: Available flight prices
+    for country in self.REQUIRED_COUNTRIES:
+        if country not in matches_by_country or not matches_by_country[country]:
+            return BestValueResult(
+                withinBudget=False,
+                matches=[],
+                route=None,
+                costBreakdown={},
+                countriesVisited=[],
+                matchCount=0,
+                message=f"Cannot meet requirement: No matches in {country}"
+            )
 
-        Returns:
-            BestValueResult with the optimal match selection
-        """
-        # TODO: Implement best value finder (BONUS CHALLENGE #1)
-        #
-        # Suggested approach (greedy):
-        # 1. First, ensure country coverage:
-        #    - Pick the cheapest match from each required country
-        #    - This guarantees we visit USA, Mexico, and Canada
-        #
-        # 2. Sort remaining matches by "value" (e.g., ticket price / quality)
-        #
-        # 3. Greedily add matches while staying within budget:
-        #    - For each candidate match, calculate if adding it keeps us in budget
-        #    - Consider both ticket price AND added flight/accommodation costs
-        #
-        # 4. Ensure minimum 5 matches:
-        #    - If we can't reach 5 matches within budget, return withinBudget = False
-        #    - Set message explaining the constraint
-        #
-        # 5. Build the optimised route using NearestNeighbour
-        #
-        # 6. Return BestValueResult with:
-        #    - withinBudget: True/False
-        #    - matches: selected matches
-        #    - route: optimised travel route
-        #    - costBreakdown: detailed costs
-        #    - countriesVisited: list of countries
-        #    - matchCount: number of matches
-        #    - message: description of result
+    selected_matches = []
+    for country in self.REQUIRED_COUNTRIES:
+        cheapest_match = min(matches_by_country[country], key=lambda m: m['ticketPrice'])
+        selected_matches.append(cheapest_match)
 
-        raise NotImplementedError("Not implemented — this is a bonus challenge!")
+    remaining_matches = [m for m in all_matches if m not in selected_matches]
+    remaining_matches.sort(key=lambda m: m['ticketPrice'])
 
-    # ============================================================
-    # HELPER METHODS (Already implemented for you)
-    # ============================================================
+    for match in remaining_matches:
+        if len(selected_matches) >= 5:
+            break
+
+        candidate_matches = selected_matches + [match]
+        candidate_cost = self.calculate_trip_cost(candidate_matches, origin_city_id, flight_prices)
+
+        if candidate_cost <= budget:
+            selected_matches.append(match)
+
+    total_cost = self.calculate_trip_cost(selected_matches, origin_city_id, flight_prices)
+    within_budget = total_cost <= budget and len(selected_matches) >= 5
+    countries_visited = list({m['country'] for m in selected_matches})
+
+    return BestValueResult(
+        withinBudget=within_budget,
+        matches=selected_matches,
+        route=None,
+        costBreakdown={
+            'totalCost': total_cost,
+            'ticketCost': sum(m['ticketPrice'] for m in selected_matches),
+            'flightCost': total_cost - sum(m['ticketPrice'] for m in selected_matches),
+            'accommodationCost': 0
+        },
+        countriesVisited=countries_visited,
+        matchCount=len(selected_matches),
+        message="Best value matches found within budget." if within_budget else "Cannot find enough matches within budget."
+    )
+
+
 
     def get_matches_by_country(self, matches: list) -> dict:
         """Group matches by their country."""
