@@ -14,32 +14,38 @@ class NearestNeighbourStrategy(RouteStrategy):
     """
 
     def optimise(self, matches: list) -> dict:
-        # TODO: Implement nearest-neighbour optimisation (YOUR TASK #3)
-        #
-        # Pseudocode:
-        # 1. Sort all matches by kickoff date
-        # 2. Group matches that fall on the same day
-        #    Hint: match['kickoff'].split('T')[0] gives the date string
-        # 3. Start with the first match chronologically — this is your starting city
-        # 4. For each subsequent day group:
-        #    a. If only one match that day → add it to the route
-        #    b. If multiple matches that day → pick the one whose city is closest
-        #       to your current position (use calculate_distance)
-        # 5. Track your "current city" as you go — update it after each match
-        # 6. Return build_route(ordered_matches, 'nearest-neighbour')
-        #
-        # Helper you'll need:
-        #   calculate_distance(lat1, lon1, lat2, lon2) → returns distance in km
-        #
-        # Example:
-        #   dist = calculate_distance(
-        #       current_city['latitude'], current_city['longitude'],
-        #       candidate['city']['latitude'], candidate['city']['longitude']
-        #   )
-        #
-        # Tips:
-        # - You can use itertools.groupby or a dict to group by date
-        # - Don't forget to handle the case where there's only one match on a day
-        # - The first match in chronological order should always be your starting point
+        sorted_matches = sorted(matches, key=lambda m: m['kickoff'])
+        matches_by_date = {}
+        for match in sorted_matches:
+            date = match['kickoff'].split('T')[0]
+            if date not in matches_by_date:
+                matches_by_date[date] = []
+            matches_by_date[date].append(match)
+        
+        ordered_matches = []
+        current_city = None
+        for date in sorted(matches_by_date.keys()):
+            daily_matches = matches_by_date[date]
+            if len(daily_matches) == 1:
+                chosen_match = daily_matches[0]
+            else:
+                if current_city is None:
+                    chosen_match = daily_matches[0]  # Start with the first match if we have no current city
+                else:
+                    closest_match = daily_matches[0]
+                    closest_distance = float('inf')
+                    for candidate in daily_matches:
+                        dist = calculate_distance(
+                            current_city['latitude'], current_city['longitude'],
+                            candidate['city']['latitude'], candidate['city']['longitude']
+                        )
+                        if dist < closest_distance:
+                            closest_distance = dist
+                            closest_match = candidate
+                    chosen_match = closest_match
+            
+            ordered_matches.append(chosen_match)
+            current_city = chosen_match['city']
 
-        raise NotImplementedError("Not implemented — this is your task!")
+
+        return build_route(ordered_matches, 'nearest-neighbour')

@@ -18,8 +18,7 @@ optimise_bp = Blueprint('optimise', __name__)
 #  POST /api/route/optimise — Optimise a travel route
 # ============================================================
 #
-# TODO: Implement this endpoint (YOUR TASK #3)
-#
+
 # Request body: { "matchIds": ["match-1", "match-5", "match-12", ...] }
 #
 # Steps:
@@ -38,8 +37,16 @@ optimise_bp = Blueprint('optimise', __name__)
 
 @optimise_bp.route('/optimise', methods=['POST'])
 def optimise():
-    # TODO: Replace with your implementation (YOUR TASK #3)
-    return jsonify({}), 200
+    match_ids = request.get_json().get('matchIds', [])
+    if not match_ids:
+        return jsonify({"error": "No matchIds provided"}), 400
+    matches = Match.query.filter(Match.id.in_(match_ids)).all()
+    if not matches:
+        return jsonify({"error": "No matches found for provided IDs"}), 404
+    match_dicts = [match.to_dict() for match in matches]
+    strategy = NearestNeighbourStrategy()
+    optimised_route = strategy.optimise(match_dicts)
+    return jsonify(optimised_route), 200
 
 
 # ============================================================
