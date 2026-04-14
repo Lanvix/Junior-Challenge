@@ -19,7 +19,8 @@ def setup_method(self):
     self.strategy = NearestNeighbourStrategy()
 
 def test_happy_path_returns_valid_route(self):
-    """Should return a valid route for multiple matches (happy path)"""
+
+     # Use three matches on different cities to check that the strategy orders them correctly
     matches = [
         {
             "id": "match-1",
@@ -38,24 +39,31 @@ def test_happy_path_returns_valid_route(self):
         }
     ]
     result = self.strategy.optimise(matches)
+
+    # Verify the route contains the expected structure and multiple stops
     assert 'stops' in result
     assert 'totalDistance' in result
     assert len(result['stops']) == 3
     assert result['totalDistance'] > 0
 
     def test_empty_matches_returns_empty_route(self):
-        """Should return an empty route for empty matches"""
+        # An empty input should not crash and should produce an empty route
         result = self.strategy.optimise([])
+
+        # Confirm the strategy handles the edge case cleanly
         assert result['stops'] == []
         assert result['totalDistance'] == 0
   
     def test_single_match_returns_zero_distance(self):
-        """Should return zero distance for a single match"""
+
+         # With only one match there is no travel between stops, so distance should be zero
         match = {
             "id": "match-1",
             "kickoff": "2024-11-01T20:00:00Z",
             "city": { "id": "city-1", "name": "City 1", "latitude": 40.7128, "longitude": -74.0060 }
         }
         result = self.strategy.optimise([match])
+
+         # A single stop should still be returned, but with no travel distance
         assert len(result['stops']) == 1
         assert result['totalDistance'] == 0

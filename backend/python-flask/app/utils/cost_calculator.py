@@ -4,32 +4,6 @@ from app.strategies.route_strategy import BudgetResult, CostBreakdown
 
 
 class CostCalculator:
-    """
-    CostCalculator — YOUR TASK #5
-
-    ============================================================
-    WHAT YOU NEED TO IMPLEMENT:
-    ============================================================
-
-    The calculate method should:
-    1. Calculate ticket costs (sum of ticketPrice for all matches)
-    2. Calculate flight costs (between consecutive cities + from origin)
-    3. Calculate accommodation costs (nights × city's accommodationPerNight rate)
-    4. Check feasibility (total ≤ budget AND visits USA, Mexico, Canada)
-    5. Return suggestions if not feasible
-
-    ============================================================
-    HELPER METHODS PROVIDED:
-    ============================================================
-
-    The helper methods below are already implemented for you:
-    - get_flight_price(): Look up flight price between two cities
-    - calculate_nights_between(): Calculate nights between two dates
-    - get_countries_visited(): Get list of unique countries from matches
-    - get_missing_countries(): Check which required countries are missing
-    - generate_suggestions(): Create cost-saving suggestions
-
-    """
 
     REQUIRED_COUNTRIES = ['USA', 'Mexico', 'Canada']
 
@@ -40,18 +14,25 @@ def calculate(
     origin_city_id: str,
     flight_prices: list
 ) -> BudgetResult:
+    
+    # Sum ticket costs first because they are fixed once the matches are chosen
     ticket_cost = sum(match['ticketPrice'] for match in matches)
+
+    # Flight and accommodation costs are built up as we move through the route
     flight_cost = 0
     accommodation_cost = 0
 
+    # Track the current city and date so we can calculate travel and overnight stays
     current_city_id = origin_city_id
     current_date = None
 
     for match in matches:
         city = match['city']
 
+        # Add the cost of travelling from the previous city to the next match city
         flight_cost += self.get_flight_price(current_city_id, city['id'], flight_prices)
 
+        # If this is not the first match, calculate accommodation for the nights between matches
         if current_date:
             nights = self.calculate_nights_between(current_date, match['kickoff'])
             accommodation_cost += nights * city['accommodationPerNight']
@@ -59,12 +40,17 @@ def calculate(
         current_city_id = city['id']
         current_date = match['kickoff']
 
+    # Combine all cost types to determine the final trip cost
     total_cost = ticket_cost + flight_cost + accommodation_cost
 
+    # Work out which countries are covered and which required ones are still missing
     countries_visited = self.get_countries_visited(matches)
     missing_countries = self.get_missing_countries(countries_visited)
 
+    # A trip is feasible only if it stays within budget and covers all required countries
     feasible = total_cost <= budget and not missing_countries
+
+    # If the plan is not feasible, calculate the minimum budget required and give suggestions
     minimum_budget_required = total_cost if not feasible else None
     suggestions = self.generate_suggestions(matches, total_cost, budget) if not feasible else []
 
