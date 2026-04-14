@@ -33,59 +33,61 @@ class CostCalculator:
 
     REQUIRED_COUNTRIES = ['USA', 'Mexico', 'Canada']
 
-    def calculate(
-        self,
-        matches: list,
-        budget: float,
-        origin_city_id: str,
-        flight_prices: list
-    ) -> BudgetResult:
-        """
-        Calculate the total cost of a trip and check if it's within budget.
+def calculate(
+    self,
+    matches: list,
+    budget: float,
+    origin_city_id: str,
+    flight_prices: list
+) -> BudgetResult:
+    ticket_cost = sum(match['ticketPrice'] for match in matches)
+    flight_cost = 0
+    accommodation_cost = 0
 
-        Args:
-            matches: List of match dicts the user wants to attend (sorted by date)
-            budget: The user's maximum budget in USD
-            origin_city_id: The city where the user starts their trip
-            flight_prices: All available flight prices between cities
+    current_city_id = origin_city_id
+    current_date = None
 
-        Returns:
-            BudgetResult dict containing feasibility, costs, and suggestions
-        """
-        # TODO: Implement cost calculation (YOUR TASK #5)
-        #
-        # Pseudocode:
-        # 1. Calculate ticket costs:
-        #    - Sum of match['ticketPrice'] for all matches
-        #
-        # 2. Calculate flight costs:
-        #    - From origin_city_id to first match's city
-        #    - Between each consecutive match city (if different)
-        #    - Use get_flight_price() helper to look up prices
-        #
-        # 3. Calculate accommodation costs:
-        #    - For each city visited, calculate nights stayed
-        #    - Use calculate_nights_between() for dates
-        #    - Multiply nights by city's accommodationPerNight
-        #
-        # 4. Build CostBreakdown with all costs and total
-        #
-        # 5. Check country constraint:
-        #    - Use get_countries_visited() and get_missing_countries()
-        #    - If missing countries, set feasible = False
-        #
-        # 6. Check budget constraint:
-        #    - If total > budget, set feasible = False
-        #    - Set minimumBudgetRequired = total
-        #
-        # 7. Generate suggestions if not feasible:
-        #    - Use generate_suggestions() helper
-        #
-        # 8. Return BudgetResult with all results
+    for match in matches:
+        city = match['city']
 
-        raise NotImplementedError("Not implemented — this is your task!")
+        flight_cost += self.get_flight_price(current_city_id, city['id'], flight_prices)
 
-    # ============================================================
+        if current_date:
+            nights = self.calculate_nights_between(current_date, match['kickoff'])
+            accommodation_cost += nights * city['accommodationPerNight']
+
+        current_city_id = city['id']
+        current_date = match['kickoff']
+
+    total_cost = ticket_cost + flight_cost + accommodation_cost
+
+    countries_visited = self.get_countries_visited(matches)
+    missing_countries = self.get_missing_countries(countries_visited)
+
+    feasible = total_cost <= budget and not missing_countries
+    minimum_budget_required = total_cost if not feasible else None
+    suggestions = self.generate_suggestions(matches, total_cost, budget) if not feasible else []
+
+    return BudgetResult(
+        feasible=feasible,
+        route={
+            'stops': matches,
+            'totalDistance': 0,
+            'strategy': 'cost-calculator'
+        },
+        costBreakdown=CostBreakdown(
+            flights=flight_cost,
+            accommodation=accommodation_cost,
+            tickets=ticket_cost,
+            total=total_cost
+        ),
+        countriesVisited=countries_visited,
+        missingCountries=missing_countries,
+        minimumBudgetRequired=minimum_budget_required,
+        suggestions=suggestions
+    )
+
+
     # HELPER METHODS (Already implemented for you)
     # ============================================================
 

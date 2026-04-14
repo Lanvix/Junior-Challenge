@@ -7,34 +7,6 @@ from app.strategies.nearest_neighbour_strategy import NearestNeighbourStrategy
 
 optimise_bp = Blueprint('optimise', __name__)
 
-# ============================================================
-#  Route Optimisation — YOUR TASK #3 and #5
-#
-#  Implement route optimisation and budget calculation endpoints.
-# ============================================================
-
-
-# ============================================================
-#  POST /api/route/optimise — Optimise a travel route
-# ============================================================
-#
-
-# Request body: { "matchIds": ["match-1", "match-5", "match-12", ...] }
-#
-# Steps:
-#   1. Extract matchIds from the request JSON
-#   2. Fetch full match data from the database
-#   3. Convert matches to dicts (using match.to_dict())
-#   4. Create a strategy instance: NearestNeighbourStrategy()
-#      (or DateOnlyStrategy() to test with the working example first)
-#   5. Call strategy.optimise(match_dicts)
-#   6. Return the optimised route as JSON
-#
-# TIP: Start by using DateOnlyStrategy to verify your endpoint works,
-# then switch to NearestNeighbourStrategy once you've implemented it.
-#
-# ============================================================
-
 @optimise_bp.route('/optimise', methods=['POST'])
 def optimise():
     match_ids = request.get_json().get('matchIds', [])
@@ -49,41 +21,26 @@ def optimise():
     return jsonify(optimised_route), 200
 
 
-# ============================================================
-#  POST /api/route/budget — Calculate trip costs and check budget
-# ============================================================
-#
-# TODO: Implement this endpoint (YOUR TASK #5)
-#
-# Request body:
-# {
-#   "budget": 5000.00,
-#   "matchIds": ["match-1", "match-5", "match-12", ...],
-#   "originCityId": "city-atlanta"
-# }
-#
-# Steps:
-#   1. Extract budget, matchIds, and originCityId from request JSON
-#   2. Fetch matches by IDs from the database
-#   3. Convert matches to dicts (using match.to_dict())
-#   4. Fetch all flight prices from the database
-#   5. Create a CostCalculator instance
-#   6. Call calculator.calculate(match_dicts, budget, origin_city_id, flight_prices)
-#   7. Return the BudgetResult as JSON
-#
-# IMPORTANT CONSTRAINTS:
-#   - User MUST attend at least 1 match in each country (USA, Mexico, Canada)
-#   - If the budget is insufficient, return feasible=False with:
-#     - minimumBudgetRequired: the actual cost
-#     - suggestions: ways to reduce cost
-#   - If countries are missing, return feasible=False with:
-#     - missingCountries: list of countries not covered
-#
-# ============================================================
+
 @optimise_bp.route('/budget', methods=['POST'])
 def budget_optimise():
-    # TODO: Replace with your implementation (YOUR TASK #5)
-    return jsonify({}), 200
+    data = request.get_json()
+    budget = data.get('budget')
+    match_ids = data.get('matchIds', [])
+    origin_city_id = data.get('originCityId')
+    if budget is None or not match_ids or not origin_city_id:
+        return jsonify({"error": "Missing required fields: budget, matchIds, originCityId"}), 400
+    matches = Match.query.filter(Match.id.in_(match_ids)).all()
+    if not matches:
+        return jsonify({"error": "No matches found for provided IDs"}), 404
+    match_dicts = [match.to_dict() for match in matches]
+    flight_prices = FlightPrice.query.all()
+
+    CostCalculator = __import__('app.utils.cost_calculator', fromlist=['CostCalculator']).CostCalculator
+    calculator = CostCalculator()
+
+    budget_result = calculator.calculate(match_dicts, budget, origin_city_id, flight_prices)
+    return jsonify(budget_result), 200
 
 
 # ============================================================
